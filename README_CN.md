@@ -1,32 +1,31 @@
 # sql-res-cmp
 
-SQL query result comparison tool, supports MySQL/ClickHouse/PostgreSQL.
 SQL 查询结果对比工具，支持 MySQL/ClickHouse/PostgreSQL。
 
-[中文文档](README_CN.md)
+[English Documentation](README.md)
 
-## Features
+## 功能
 
-- Execute two database queries simultaneously
-- Compare query results for consistency
-- Support comparison by key columns (for unordered results)
-- Support DingTalk/WeChat alerts when results mismatch
-  - DingTalk notification [uses webhook]
-  - WeChat notification [uses weclaw-generated credential]
+- 同时执行两个数据库查询
+- 对比查询结果是否一致
+- 支持按 key 列对比（用于无序结果的比较）
+- 比对不一致时支持钉钉/WeChat 告警
+  - DingTalk 通知【使用 webhook】
+  - WeChat 通知【调用 weclaw 生成的 credential】
 
-## Installation
+## 安装
 
 ```bash
 go build -o diffq ./cmd
 ```
 
-## Usage
+## 使用方法
 
 ```bash
 diffq -d1 "<DSN1>" -q1 "<query1>" -d2 "<DSN2>" -q2 "<query2>" [-key "col1,col2"] [-ding "webhook"] [-wechat true] [-name myscript]
 ```
 
-### DSN Format
+### DSN 格式
 
 **MySQL:**
 ```
@@ -43,9 +42,9 @@ clickhouse://host:port/dbname?username=user&password=pass
 postgres://user:pass@host:port/dbname
 ```
 
-### Examples
+### 示例
 
-**Same query comparison:**
+**相同查询对比:**
 ```bash
 ./diffq \
   -d1 "mysql://root:123456@127.0.0.1:3306/testdb" \
@@ -54,7 +53,7 @@ postgres://user:pass@host:port/dbname
   -q2 "SELECT id, name FROM users WHERE status=1"
 ```
 
-**Send DingTalk alert on mismatch:**
+**比对失败发送钉钉告警:**
 ```bash
 ./diffq \
   -d1 "mysql://root:123456@127.0.0.1:3306/testdb" \
@@ -64,7 +63,7 @@ postgres://user:pass@host:port/dbname
   -ding "https://oapi.dingtalk.com/robot/send?access_token=xxx"
 ```
 
-**Cross-database comparison:**
+**跨数据库对比:**
 ```bash
 ./diffq \
   -d1 "mysql://root:123456@127.0.0.1:3306/mysql" \
@@ -73,7 +72,7 @@ postgres://user:pass@host:port/dbname
   -q2 "SELECT 1 as id, 'hello' as name"
 ```
 
-**Using key columns for comparison (when results are unordered):**
+**使用 key 列对比（结果无序时）:**
 ```bash
 ./diffq \
   -d1 "mysql://..." -q1 "SELECT * FROM orders" \
@@ -81,38 +80,38 @@ postgres://user:pass@host:port/dbname
   -key "id"
 ```
 
-### Parameters
+### 参数说明
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `-d1` | First database DSN | Required |
-| `-q1` | First query SQL | Required |
-| `-d2` | Second database DSN | Required |
-| `-q2` | Second query SQL | Required |
-| `-key` | Key columns for comparison (comma-separated) | None |
-| `-ding` | DingTalk robot webhook URL | None |
-| `-wechat` | Send WeChat alert | false [Optional] |
-| `-timeout` | Timeout duration | 120s |
-| `-name` | Name for the comparison | None |
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-d1` | 第一个数据库 DSN | 必需 |
+| `-q1` | 第一个查询 SQL | 必需 |
+| `-d2` | 第二个数据库 DSN | 必需 |
+| `-q2` | 第二个查询 SQL | 必需 |
+| `-key` | 用于对比的 key 列（逗号分隔） | 无 |
+| `-ding` | 钉钉机器人 webhook 地址 | 无 |
+| `-wechat` | 发送 WeChat 告警 | false |
+| `-timeout` | 超时时间 | 120s |
+| `-name` | 对比任务名称 | 无 |
 
-### Exit Codes
+### 返回值
 
-- `0`: Results match
-- `1`: Results mismatch
+- `0`: 结果一致
+- `1`: 结果不一致
 
-## Project Structure
+## 项目结构
 
 ```
 .
-├── cmd/            # CLI entry
-├── cmp/            # Comparison and execution logic
-├── alarm/          # Alerts (DingTalk, WeChat)
-├── .github/        # CI configuration
+├── cmd/            # CLI 入口
+├── cmp/            # 比较和执行逻辑
+├── alarm/          # 告警（钉钉、WeChat）
+├── .github/        # CI 配置
 ├── go.mod
 └── README.md
 ```
 
-## Testing
+## 测试
 
 ```bash
 go test ./... -v

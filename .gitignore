@@ -7,3 +7,7 @@ coverage.out
 *.dylib
 *.test
 *.out
+.claude
+.cursor
+bin/
+coverage.html

@@ -1,4 +1,4 @@
-package comparator
+package cmp
 
 import (
 	"fmt"
@@ -7,6 +7,9 @@ import (
 )
 
 type Diff struct {
+	LeftCount  int
+	RightCount int
+
 	LeftOnly  [][]string
 	RightOnly [][]string
 	Modified  []RowDiff
@@ -25,7 +28,7 @@ func NewComparator() *Comparator {
 }
 
 func (c *Comparator) Compare(r1, r2 [][]string, cols []string) *Diff {
-	diff := &Diff{Columns: cols}
+	diff := &Diff{Columns: cols, LeftCount: len(r1), RightCount: len(r2)}
 
 	if len(r1) != len(r2) {
 		diff.LeftOnly = r1
@@ -33,10 +36,10 @@ func (c *Comparator) Compare(r1, r2 [][]string, cols []string) *Diff {
 		return diff
 	}
 
-	s1 := make([][]string, len(r1))
-	copy(s1, r1)
-	s2 := make([][]string, len(r2))
-	copy(s2, r2)
+	// No need to copy, saves memory
+	// Will modify r1, r2, be aware
+	s1 := r1
+	s2 := r2
 
 	sort.Slice(s1, func(i, j int) bool {
 		return compareRows(s1[i], s1[j]) < 0
@@ -55,7 +58,7 @@ func (c *Comparator) Compare(r1, r2 [][]string, cols []string) *Diff {
 }
 
 func (c *Comparator) CompareByKey(r1, r2 [][]string, keyCols []string, allCols []string) *Diff {
-	diff := &Diff{Columns: allCols}
+	diff := &Diff{Columns: allCols, LeftCount: len(r1), RightCount: len(r2)}
 
 	keyIdx := getColIndices(keyCols, allCols)
 
@@ -157,32 +160,33 @@ func (d *Diff) IsEmpty() bool {
 }
 
 func (d *Diff) String() string {
-	if d.IsEmpty() {
-		return "PASS: 结果一致"
+	if d == nil || d.IsEmpty() {
+		return fmt.Sprintf("PASS: Results match (left:%d, right:%d)\n", d.LeftCount, d.RightCount)
 	}
 
 	var sb strings.Builder
-	sb.WriteString("FAIL: 结果不一致\n")
+	sb.Grow(256)
+	sb.WriteString(fmt.Sprintf("FAIL: Results mismatch (left:%d, right:%d)\n", d.LeftCount, d.RightCount))
 
 	if len(d.LeftOnly) > 0 {
-		sb.WriteString(fmt.Sprintf("\n仅左侧有 (%d 行):\n", len(d.LeftOnly)))
+		sb.WriteString(fmt.Sprintf("\nLeft only (%d rows):\n", len(d.LeftOnly)))
 		for _, row := range d.LeftOnly {
 			sb.WriteString(fmt.Sprintf("  %s\n", strings.Join(row, ", ")))
 		}
 	}
 
 	if len(d.RightOnly) > 0 {
-		sb.WriteString(fmt.Sprintf("\n仅右侧有 (%d 行):\n", len(d.RightOnly)))
+		sb.WriteString(fmt.Sprintf("\nRight only (%d rows):\n", len(d.RightOnly)))
 		for _, row := range d.RightOnly {
 			sb.WriteString(fmt.Sprintf("  %s\n", strings.Join(row, ", ")))
 		}
 	}
 
 	if len(d.Modified) > 0 {
-		sb.WriteString(fmt.Sprintf("\n差异 (%d 行):\n", len(d.Modified)))
+		sb.WriteString(fmt.Sprintf("\nModified (%d rows):\n", len(d.Modified)))
 		for _, m := range d.Modified {
-			sb.WriteString(fmt.Sprintf("  左侧: %s\n", strings.Join(m.Left, ", ")))
-			sb.WriteString(fmt.Sprintf("  右侧: %s\n", strings.Join(m.Right, ", ")))
+			sb.WriteString(fmt.Sprintf("  left: %s\n", strings.Join(m.Left, ", ")))
+			sb.WriteString(fmt.Sprintf("  right: %s\n", strings.Join(m.Right, ", ")))
 		}
 	}
 

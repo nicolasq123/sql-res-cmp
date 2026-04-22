@@ -8,117 +8,79 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/nicolasq123/sql-res-cmp/alarm"
-	"github.com/nicolasq123/sql-res-cmp/comparator"
-	"github.com/nicolasq123/sql-res-cmp/executor"
+	"github.com/nicolasq123/sql-res-cmp/cmp"
 )
 
 func main() {
-	var d1, q1, d2, q2 string
+	var name, d1, q1, d2, q2, keyCols, dingToken string
+	var wechat bool
 	var timeout time.Duration
-	var keyCols string
-	var dingWebhook string
 
-	flag.StringVar(&d1, "d1", "", "第一个数据库 DSN")
-	flag.StringVar(&q1, "q1", "", "第一个查询")
-	flag.StringVar(&d2, "d2", "", "第二个数据库 DSN")
-	flag.StringVar(&q2, "q2", "", "第二个查询")
-	flag.DurationVar(&timeout, "timeout", 60*time.Second, "查询超时")
-	flag.StringVar(&keyCols, "key", "", "用于比较的 key 列，逗号分隔")
-	flag.StringVar(&dingWebhook, "ding", "", "钉钉机器人 webhook 地址，比对不一致时发送告警")
-
+	flag.StringVar(&name, "name", "", "Name")
+	flag.StringVar(&d1, "d1", "", "Database 1 DSN")
+	flag.StringVar(&q1, "q1", "", "Query 1")
+	flag.StringVar(&d2, "d2", "", "Database 2 DSN")
+	flag.StringVar(&q2, "q2", "", "Query 2")
+	flag.StringVar(&keyCols, "key", "", "Key columns for comparison")
+	flag.StringVar(&dingToken, "ding", "", "DingTalk token")
+	flag.BoolVar(&wechat, "wechat", false, "Send WeChat alert")
+	flag.DurationVar(&timeout, "timeout", 120*time.Second, "Timeout duration")
 	flag.Parse()
 
 	if d1 == "" || q1 == "" || d2 == "" || q2 == "" {
-		fmt.Println("参数错误: 需要指定 -d1 -q1 -d2 -q2")
-		flag.Usage()
+		fmt.Println("Required: -d1 -q1 -d2 -q2")
 		os.Exit(1)
 	}
 
-	db1, err := executor.NewDB(d1)
-	if err != nil {
-		fmt.Printf("连接数据库1错误: %v\n", err)
-		os.Exit(1)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	db1, err := cmp.NewDB(d1)
+	myPanic(err)
 	defer db1.Close()
 
-	db2, err := executor.NewDB(d2)
-	if err != nil {
-		fmt.Printf("连接数据库2错误: %v\n", err)
-		os.Exit(1)
-	}
+	db2, err := cmp.NewDB(d2)
+	myPanic(err)
 	defer db2.Close()
 
-	cols1, rows1, err := query(db1, q1)
-	if err != nil {
-		fmt.Printf("执行查询1错误: %v\n", err)
-		os.Exit(1)
-	}
+	cols1, rows1, err := cmp.Query(ctx, db1, q1)
+	myPanic(err)
 
-	_, rows2, err := query(db2, q2)
-	if err != nil {
-		fmt.Printf("执行查询2错误: %v\n", err)
-		os.Exit(1)
-	}
+	_, rows2, err := cmp.Query(ctx, db2, q2)
+	myPanic(err)
 
-	c := comparator.NewComparator()
-	var diff *comparator.Diff
-
+	var diff *cmp.Diff
+	c := cmp.NewComparator()
 	if keyCols != "" {
-		keys := strings.Split(keyCols, ",")
-		diff = c.CompareByKey(rows1, rows2, keys, cols1)
+		diff = c.CompareByKey(rows1, rows2, strings.Split(keyCols, ","), cols1)
 	} else {
 		diff = c.Compare(rows1, rows2, cols1)
 	}
 
 	fmt.Print(diff.String())
 	if !diff.IsEmpty() {
-		if dingWebhook != "" {
-			dingAlarm := alarm.NewDingAlarm(dingWebhook)
-			alarmCtx, alarmCancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer alarmCancel()
-			if err := dingAlarm.Send(alarmCtx, diff, d1, q1, d2, q2); err != nil {
-				fmt.Printf("发送钉钉告警失败: %v\n", err)
-			} else {
-				fmt.Println("钉钉告警发送成功")
+		alarmCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		if dingToken != "" {
+			if err := alarm.NewDingAlarm(dingToken).Send(alarmCtx, name, q1, q2, diff.String()); err != nil {
+				fmt.Printf("ding: %v\n", err)
 			}
 		}
-		os.Exit(1)
+		if wechat {
+			bot, err := alarm.NewWeChatBot(nil)
+			if err != nil {
+				fmt.Printf("wechat bot: %v\n", err)
+			} else if err := bot.Send(alarmCtx, name, q1, q2, diff.String()); err != nil {
+				fmt.Printf("wechat: %v\n", err)
+			}
+		}
 	}
 }
 
-func query(db *sqlx.DB, q string) ([]string, [][]string, error) {
-	rows, err := db.Queryx(q)
+func myPanic(err error) {
 	if err != nil {
-		return nil, nil, err
+		fmt.Printf("error: %v\n", err)
+		panic(err)
 	}
-	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var result [][]string
-	for rows.Next() {
-		dests := make([]any, len(cols))
-		byteSlices := make([][]byte, len(cols))
-		for i := range dests {
-			dests[i] = &byteSlices[i]
-		}
-		if err := rows.Scan(dests...); err != nil {
-			return nil, nil, err
-		}
-		row := make([]string, len(cols))
-		for i, b := range byteSlices {
-			if b == nil {
-				row[i] = "NULL"
-			} else {
-				row[i] = string(b)
-			}
-		}
-		result = append(result, row)
-	}
-	return cols, result, rows.Err()
 }
