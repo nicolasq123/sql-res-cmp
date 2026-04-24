@@ -35,8 +35,6 @@ func NewWeChatBot(credentials map[string]any) (*WeChatBot, error) {
 	baseURL := "https://ilinkai.weixin.qq.com"
 	if u, ok := credentials["baseurl"].(string); ok && u != "" {
 		baseURL = u
-	} else if u, ok := credentials["baseURL"].(string); ok && u != "" {
-		baseURL = u
 	}
 
 	return &WeChatBot{
