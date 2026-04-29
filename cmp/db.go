@@ -58,6 +58,13 @@ func NewDB(dsn string) (*sqlx.DB, error) {
 		q := u.Query()
 		user := q.Get("username")
 		pass := q.Get("password")
+		// Also support userinfo format (user:pass@host)
+		if user == "" {
+			user = u.User.Username()
+		}
+		if pass == "" {
+			pass, _ = u.User.Password()
+		}
 		dbname := u.Path[1:]
 		driver = "clickhouse"
 		realDSN = fmt.Sprintf("tcp://%s:%s?username=%s&password=%s&database=%s", host, port, user, pass, dbname)

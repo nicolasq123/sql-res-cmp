@@ -2,7 +2,9 @@ package cmp
 
 import (
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -148,11 +150,29 @@ func rowsEqual(r1, r2 []string) bool {
 		return false
 	}
 	for i := range r1 {
-		if r1[i] != r2[i] {
+		if !approxEqual(r1[i], r2[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// approxEqual compares two values, treating float-like strings with a small epsilon
+func approxEqual(a, b string) bool {
+	if a == b {
+		return true
+	}
+
+	// Try to parse both as float64
+	fa, err1 := strconv.ParseFloat(a, 64)
+	fb, err2 := strconv.ParseFloat(b, 64)
+	if err1 == nil && err2 == nil {
+		// Both are floats, compare with epsilon
+		const epsilon = 1e-9
+		return math.Abs(fa-fb) < epsilon
+	}
+
+	return false
 }
 
 func (d *Diff) IsEmpty() bool {
