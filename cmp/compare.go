@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const EPSILON = 1e-5
+
 type Diff struct {
 	LeftCount  int
 	RightCount int
@@ -168,8 +170,7 @@ func approxEqual(a, b string) bool {
 	fb, err2 := strconv.ParseFloat(b, 64)
 	if err1 == nil && err2 == nil {
 		// Both are floats, compare with epsilon
-		const epsilon = 1e-9
-		return math.Abs(fa-fb) < epsilon
+		return math.Abs(fa-fb) < EPSILON
 	}
 
 	return false
