@@ -1,6 +1,9 @@
 package cmp
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCompare_Identical(t *testing.T) {
 	c := NewComparator()

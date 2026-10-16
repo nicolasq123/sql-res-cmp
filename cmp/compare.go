@@ -180,6 +180,11 @@ func (d *Diff) IsEmpty() bool {
 	return len(d.LeftOnly) == 0 && len(d.RightOnly) == 0 && len(d.Modified) == 0
 }
 
+
+func (d *Diff) StringAll() string {
+	
+}
+
 func (d *Diff) String() string {
 	if d == nil || d.IsEmpty() {
 		return fmt.Sprintf("PASS: Results match (left:%d, right:%d)\n", d.LeftCount, d.RightCount)

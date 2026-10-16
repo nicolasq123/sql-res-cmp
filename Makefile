@@ -71,3 +71,14 @@ run-example4:
 		-d2 "mysql://root:1234567@127.0.0.1:3306/mysql" \
 		-q1 "SELECT 1 as id, 1.1 as num" \
 		-q2 "SELECT 1 as id, 2.2 as num"
+
+
+
+
+run-example4:
+	./$(BINARY_NAME) \
+		-d1 "mysql://root:_.f86a8cabbd4a._@127.0.0.1:3306/mysql" \
+		-d2 "mysql://root:_.f86a8cabbd4a._@127.0.0.1:3306/mysql" \
+		-q1 "SELECT '2026-05-13' as dt, 8724 as cnt, 4207.39 as s, 2838.68 as s2" \
+		-q2 "SELECT '2026-05-13' as dt, 8725 as cnt, 4207.79 as s, 2838.96 as s2" \
+		-key "dt"
